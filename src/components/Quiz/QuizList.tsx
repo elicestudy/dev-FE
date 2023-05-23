@@ -11,7 +11,7 @@ import {
 	TypeOption,
 	WordStatusOption,
 } from './QuizOptions';
-import { bookListAll } from '../../apis/book';
+import { bookListAll, getBooks } from '../../apis/book';
 import { getFourProngsQuiz } from '../../apis/quiz';
 import AlertModal from '../common/AlertModal/AlertModal';
 
@@ -81,11 +81,11 @@ function QuizList({ quizInfo }: ListProps) {
 	// 	});
 	// };
 
-	const handleNumberInputChange = (value: number) => {
-		setNumberOption(() => {
-			return value;
-		});
-	};
+	// const handleDecreaseButtonClick = () => {
+	// 	setNumberOption((prev) => {
+	// 		return prev-1
+	// 	});
+	// };
 
 	const handleWordStatusInputChange = (value: number[]) => {
 		setWordStatusOption(() => {
@@ -94,18 +94,28 @@ function QuizList({ quizInfo }: ListProps) {
 	};
 
 	useEffect(() => {
-		bookListAll(userToken).then(res => {
-			const newBookList = res.data.reduce(
-				(acc: TypeBookList[], current: { name: string; short_id: string }) => {
-					const { short_id, name } = current;
-					return [...acc, { id: short_id, name }];
-				},
-				[],
-			);
-			setBookList(newBookList);
-			setBookOption(newBookList);
-		});
-	}, [userToken]);
+		const fetchData = async () => {
+			const response = userToken
+				? await bookListAll(userToken)
+				: await getBooks();
+			if (response.status === 200) {
+				const bookLists = response.data;
+				const newBookList = bookLists.reduce(
+					(
+						acc: TypeBookList[],
+						current: { name: string; short_id: string },
+					) => {
+						const { short_id, name } = current;
+						return [...acc, { id: short_id, name }];
+					},
+					[],
+				);
+				setBookList(newBookList);
+				setBookOption(newBookList);
+			}
+		};
+		fetchData();
+	}, []);
 
 	return (
 		<>
@@ -119,14 +129,19 @@ function QuizList({ quizInfo }: ListProps) {
 			<Modal
 				showModal={showOptionModal}
 				setShowModal={setShowOptionModal}
-				title='퀴즈 옵션 설정'
-			>
+				title='퀴즈 옵션 설정'>
 				<ul className={styles.optionContainer}>
 					<BookOption onClick={handleBookSelectButtonClick} />
 					{/* <TypeOption value={typeOption} onChange={handleTypeInputChange} /> */}
 					<NumberOption
 						value={numberOption}
-						onChange={handleNumberInputChange}
+						onDecreaseBtnClick={() =>
+							setNumberOption(prev => (numberOption > 5 ? prev - 5 : prev))
+						}
+						onIncreaseBtnClick={() =>
+							setNumberOption(prev => (numberOption <= 95 ? prev + 5 : prev))
+						}
+						onChangeNumInput={(value: number) => setNumberOption(value)}
 					/>
 
 					<WordStatusOption
@@ -141,8 +156,7 @@ function QuizList({ quizInfo }: ListProps) {
 			<Modal
 				showModal={showBookSelectModal}
 				setShowModal={setShowBookSelectModal}
-				title='단어장 선택'
-			>
+				title='단어장 선택'>
 				<BookSelectOption
 					bookList={bookList}
 					value={bookOption}
